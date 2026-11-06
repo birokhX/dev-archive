@@ -356,6 +356,7 @@ Action ما باید یک عملیات مشخص را انجام دهد:
     
 9. ایجاد دعوت‌نامه در دیتابیس.
 فعلاً ارسال ایمیل را انجام نمی‌دهیم؛ آن را در مرحله بعد جداگانه پیاده‌سازی می‌کنیم.
+
 ## ۲. یک تصمیم مهم: خروجی Action
 
 قبل از نوشتن Action باید یک مسئله را حل کنیم.
@@ -366,7 +367,6 @@ $tokenHash = hash('sha256', $token);
 ```
 
 اما برای ساخت لینک دعوت‌نامه به توکن اصلی نیاز داریم.
-
 پس Action باید دو خروجی در اختیار ما قرار دهد:
 
 - رکورد دعوت‌نامه ایجادشده.
@@ -433,7 +433,6 @@ mkdir app/Actions/AdminInvitations
 ```
 
 سپس فایل:
-
 `app/Actions/AdminInvitations/CreateAdminInvitationAction.php`
 
 کد کامل:
@@ -449,7 +448,7 @@ use App\Models\Admin;
 use App\Models\AdminInvitation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\ValidationException;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 
 class CreateAdminInvitationAction
@@ -623,3 +622,80 @@ $tokenHash = hash('sha256', $token);
     
 
 این موارد را هنگام اتصال به Livewire و نهایی‌سازی Action بررسی می‌کنیم.
+
+**یک نکته معماری برای آینده:** بررسی دعوت‌نامه فعال با `exists()` به‌تنهایی جلوی درخواست‌های هم‌زمان را نمی‌گیرد. ممکن است دو درخواست هم‌زمان هر دو بررسی را پشت سر بگذارند و دو دعوت‌نامه بسازند. در نسخه نهایی باید این Race Condition را هم کنترل کنیم.
+
+# مرحله ۳: ساخت Form Object در Livewire
+
+حالا باید ورودی کاربر را از منطق Action جدا کنیم.
+
+در این مرحله می‌خواهیم یک Form Object بسازیم که مسئول این موارد باشد:
+
+- نگهداری ایمیل واردشده.
+    
+- اعتبارسنجی ایمیل.
+    
+- آماده‌سازی داده برای ارسال به Action.
+
+
+## ۱. ایجاد فایل Form
+
+مسیر پیشنهادی:
+
+```
+app/
+└── Livewire/
+    └── Forms/
+        └── Admin/
+            └── CreateAdminInvitationForm.php
+```
+
+کد:
+```php
+
+<?php
+
+namespace App\Livewire\Forms\Admin;
+
+use App\DTOs\Admin\AdminInvitation\CreateAdminInvitationData;
+use Livewire\Form;
+
+class CreateAdminInvitationForm extends Form
+{
+    public string $email = '';
+
+    public function rules(): array
+    {
+        return [
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+            ],
+        ];
+    }
+
+    public function toDTO(): CreateAdminInvitationData
+    {
+        return new CreateAdminInvitationData(
+            email: $this->email,
+        );
+    }
+}
+
+```
+
+
+### چرا این متدها را داریم؟
+
+`rules()`
+
+قوانین اعتبارسنجی ورودی فرم را مشخص می‌کند. فعلاً بررسی نمی‌کنیم که ایمیل قبلاً ادمین شده یا دعوت‌نامه فعال دارد؛ این بررسی‌ها در Action باقی می‌مانند، چون بخشی از منطق کسب‌وکار هستند.
+
+`toDTO()`
+
+داده فرم را به DTO تبدیل می‌کند. به این ترتیب Action مستقیماً به Livewire وابسته نمی‌شود.
+
+
+![[Screenshot 2026-11-03 053624.png]]
