@@ -344,7 +344,7 @@ registerToast();
         x-for="item in $store.toast.items"
         :key="item.id"
     >
-        <x-ui.toast.container />
+        <x-ui.toast.item />
     </template>
 </div>
 ```
